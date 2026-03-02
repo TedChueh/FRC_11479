@@ -18,7 +18,10 @@ ShootCompOutput calcShootComp(degree_t shootDegree,
                               Translation2d targetPosition,
                               const impl::SwerveDrivetrainImpl::SwerveDriveState& robotState,
                               meter_t wheelRadius_m,   
-                              double kMultiplier) 
+                              double kApproachGain,
+                              double kStationaryGain,
+                              double kRetreatGain,
+                              double kAngleGain) 
 {
     Translation2d robotPosition = robotState.Pose.Translation();
     ChassisSpeeds robotVelocity = robotState.Speeds;
@@ -43,24 +46,25 @@ ShootCompOutput calcShootComp(degree_t shootDegree,
     double vForward = robotVelocity.vx.value() * ux + robotVelocity.vy.value() * uy;
     double v_comp = desiredVx.value() - vForward;
 
-    TPS tps = 1_tps * (v_comp / (2.0 * M_PI * wheelRadius_m.value())) * kMultiplier;
+    double kWheelCircumferenceMeters  = 2.0 * M_PI * wheelRadius_m.value();
 
-    double TVcrossRVV = targetVector.X().value() * robotVelocity.vy.value() -
-                        targetVector.Y().value() * robotVelocity.vx.value();
-    double tangentialSpeed = TVcrossRVV / targetDistance.value();
+    double approachComponent  = (vForward >= 0.0) ? kApproachGain * vForward : kRetreatGain * vForward;
+    TPS tps = 1_tps * (desiredVx.value() * kStationaryGain + approachComponent) / kWheelCircumferenceMeters;
 
-    double compAngleRad = atan2(tangentialSpeed, v_comp);
+    double RVVcrossTV = robotVelocity.vx.value() * targetVector.Y().value() -
+                        targetVector.X().value() * robotVelocity.vy.value();
+    double tangentialSpeed = RVVcrossTV / targetDistance.value();
+    double sign = (RVVcrossTV >= 0.0) ? 1.0 : -1.0;
+    double compAngleRad = sign * atan2(abs(tangentialSpeed), abs(v_comp)) * kAngleGain;
         
+    SmartDashboard::PutNumber("Raw TPS: ", tps.value());
     if(tps < 0_tps) {
-        SmartDashboard::PutString("Velocity Comp Angle Warning⚠️: ", "TPS < 0");
         return ShootCompOutput{Rotation2d(0_rad), 0.0_tps};
     }
     else if(tps > 100_tps) {
-        SmartDashboard::PutString("Velocity Comp Angle Warning⚠️: ", "TPS > 100");
         return ShootCompOutput{Rotation2d(0_rad), 0.0_tps};
     }
     else {
-        SmartDashboard::PutString("Velocity Comp Angle Warning⚠️: ", "TPS within bounds");
         return ShootCompOutput{Rotation2d(radian_t(compAngleRad)), tps};
     }
 }
