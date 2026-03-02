@@ -52,5 +52,5 @@ class IntakeSubsystem : public SubsystemBase {
         DualMotorModule armModule;
         
         bool intakeStatus = false;
-        bool armStatus = false;
+        bool armStatus = true;
 };
