@@ -30,7 +30,7 @@ class ConveyerSubsystem : public SubsystemBase {
         DualMotorModule::Config conveyerConfig
       );
 
-      CommandPtr Conveying(function<bool()> status);
+      CommandPtr Conveying(function<TPS()> tps, function<bool()> status);
       
       void ActivateConveyer(TPS tps);
       

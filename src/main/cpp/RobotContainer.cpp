@@ -33,7 +33,7 @@ void RobotContainer::ConfigureBindings()
         })
     );
     conveyer.SetDefaultCommand(
-        conveyer.Conveying([this] { return intake.isIntakeActive() || shooter.isActive(); })
+        conveyer.Conveying([] { return 20_tps; }, [this] { return shooter.isActive(); })
     );
     intake.SetDefaultCommand(
         intake.StopIntaking()
@@ -92,6 +92,12 @@ void RobotContainer::ConfigureBindings()
         })
     );
 
+    joystick.LeftBumper().OnTrue(
+        drivetrain.RunOnce([this] { 
+            drivetrain.SeedFieldCentric(); 
+        })
+    ); // reset the field-centric heading on left bumper press
+
     joystick.B().OnTrue(
         intake.Lifting()
     );
@@ -100,11 +106,14 @@ void RobotContainer::ConfigureBindings()
         intake.Lowering()
     );
 
-    joystick.LeftBumper().OnTrue(
-        drivetrain.RunOnce([this] { 
-            drivetrain.SeedFieldCentric(); 
-        })
-    ); // reset the field-centric heading on left bumper press
+    joystick.POVLeft().ToggleOnTrue(
+        intake.Intaking([] { 
+            return -30_tps; 
+        }).AlongWith(conveyer.Conveying(
+            [] { return -20_tps; }, 
+            [] { return true; }
+        ))
+    );
 
     joystick.Back().OnTrue(
         drivetrain.RunOnce([this] { 
