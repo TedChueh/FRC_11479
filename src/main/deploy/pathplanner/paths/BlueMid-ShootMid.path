@@ -8,20 +8,20 @@
       },
       "prevControl": null,
       "nextControl": {
-        "x": 3.0887243393564705,
-        "y": 5.016149430350668
+        "x": 3.4035388513513514,
+        "y": 5.101621621621621
       },
       "isLocked": false,
       "linkedName": "BlueMid"
     },
     {
       "anchor": {
-        "x": 2.5146875,
-        "y": 6.812660472972973
+        "x": 2.88504222972973,
+        "y": 6.9459881756756765
       },
       "prevControl": {
-        "x": 2.8995146089331905,
-        "y": 5.837130815548889
+        "x": 3.2183614864864865,
+        "y": 5.871959459459459
       },
       "nextControl": null,
       "isLocked": false,
@@ -31,7 +31,14 @@
   "rotationTargets": [],
   "constraintZones": [],
   "pointTowardsZones": [],
-  "eventMarkers": [],
+  "eventMarkers": [
+    {
+      "name": "Shoot",
+      "waypointRelativePos": 1.0,
+      "endWaypointRelativePos": null,
+      "command": null
+    }
+  ],
   "globalConstraints": {
     "maxVelocity": 3.0,
     "maxAcceleration": 3.0,
@@ -48,7 +55,7 @@
   "folder": null,
   "idealStartingState": {
     "velocity": 0,
-    "rotation": 0.0
+    "rotation": -179.99999999999972
   },
   "useDefaultConstraints": true
 }

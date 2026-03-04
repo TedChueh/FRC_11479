@@ -3,13 +3,13 @@
   "waypoints": [
     {
       "anchor": {
-        "x": 2.5146875,
-        "y": 6.812660472972973
+        "x": 2.88504222972973,
+        "y": 6.9459881756756765
       },
       "prevControl": null,
       "nextControl": {
-        "x": 3.05540540541263,
-        "y": 7.657069256755641
+        "x": 3.42576013514236,
+        "y": 7.790396959458344
       },
       "isLocked": false,
       "linkedName": "ShootingTop"
@@ -53,11 +53,11 @@
   "constraintZones": [
     {
       "name": "Constraints Zone",
-      "minWaypointRelativePos": 0.9468438538205977,
+      "minWaypointRelativePos": 1.4385382059800642,
       "maxWaypointRelativePos": 2.0,
       "constraints": {
-        "maxVelocity": 1.5,
-        "maxAcceleration": 1.5,
+        "maxVelocity": 2.0,
+        "maxAcceleration": 3.0,
         "maxAngularVelocity": 540.0,
         "maxAngularAcceleration": 720.0,
         "nominalVoltage": 12.0,
@@ -68,6 +68,12 @@
   "pointTowardsZones": [],
   "eventMarkers": [
     {
+      "name": "ShootStop",
+      "waypointRelativePos": 0.5436241610738257,
+      "endWaypointRelativePos": null,
+      "command": null
+    },
+    {
       "name": "Arm",
       "waypointRelativePos": 0.6544850498338871,
       "endWaypointRelativePos": null,
@@ -75,8 +81,8 @@
     },
     {
       "name": "Intake",
-      "waypointRelativePos": 0.9468438538205987,
-      "endWaypointRelativePos": null,
+      "waypointRelativePos": 1.1409395973154342,
+      "endWaypointRelativePos": 2.0,
       "command": null
     }
   ],

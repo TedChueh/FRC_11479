@@ -19,7 +19,7 @@ ShootCompOutput calcShootComp(degree_t shootDegree, meter_t deltaHeight, Transla
                               double kApproachGain, double kStationaryGain, double kRetreatGain,
                               double kAngleGain) {
     Translation2d robotPosition = robotState.Pose.Translation();
-    ChassisSpeeds robotVelocity = robotState.Speeds;
+    ChassisSpeeds robotVelocity = ChassisSpeeds::FromRobotRelativeSpeeds(robotState.Speeds, robotState.Pose.Rotation());
     Translation2d targetVector = targetPosition - robotPosition;
     meter_t targetDistance = targetVector.Norm();
 
@@ -56,7 +56,6 @@ ShootCompOutput calcShootComp(degree_t shootDegree, meter_t deltaHeight, Transla
         // and the absolute value of vSideways and v_comp are used to ensure the angle is calculated correctly regardless of direction. 
         // The kAngleGain is applied to adjust how aggressively the system compensates for sideways motion.
         double compAngleRad = sign * atan2(abs(vSideways), abs(v_comp)) * kAngleGain;
-        
         return ShootCompOutput{Rotation2d(radian_t(compAngleRad)), tps};
     }
 }

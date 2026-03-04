@@ -7,14 +7,21 @@
 #include <frc2/command/Commands.h>
 #include <frc2/command/button/RobotModeTriggers.h>
 #include <pathplanner/lib/auto/AutoBuilder.h>
+#include <pathplanner/lib/events/EventTrigger.h>
 
 #include "RobotContainer.h"
 #include "utils/math_utils.h"
 
+using namespace pathplanner;
+
 RobotContainer::RobotContainer()
 { 
-    pathplanner::NamedCommands::registerCommand("Shooting", shooter.Shooting([] { return 60_tps; }).WithTimeout(6_s));
-    pathplanner::NamedCommands::registerCommand("IntakeStop", intake.StopIntaking() );
+    // NamedCommands::registerCommand("Shooting", shooter.Shooting([this] { return calcShootComp(61.32_deg, 1.27935_m, targetTranslation, drivetrain.GetState(), 0.050585_m, 4, 6.5, 6, 1).tps; }).WithTimeout(3_s));  
+    EventTrigger("Intake").WhileTrue(intake.Intaking([] { return 30_tps; }));
+    EventTrigger("Shoot").WhileTrue(shooter.Shooting([this] { return calcShootComp(61.32_deg, 1.27935_m, targetTranslation, drivetrain.GetState(), 0.050585_m, 4, 6.5, 6, 1).tps; }));
+    EventTrigger("IntakeStop").WhileTrue(intake.StopIntaking());
+    EventTrigger("ShootStop").OnTrue(shooter.StopShooting());
+
     autoChooser = pathplanner::AutoBuilder::buildAutoChooser();
     SmartDashboard::PutData("Auto Mode", &autoChooser);
     Shuffleboard::GetTab("Field").Add("Field", m_Field2d).WithSize(6, 4);
@@ -39,7 +46,7 @@ void RobotContainer::ConfigureBindings()
         intake.StopIntaking()
     );
     shooter.SetDefaultCommand(
-        shooter.Stop()
+        shooter.StopShooting()
     );
 
     // Disable Mode Trigger
@@ -57,12 +64,12 @@ void RobotContainer::ConfigureBindings()
     // Joystick Binding
     joystick.Y().WhileTrue(
         drivetrain.ApplyRequest([this]() -> auto&& {
-            return FieldCentricFacingAngle_Manualdrive.WithVelocityX(-joystick.GetLeftY() * MaxSpeed * 0.6) 
-                .WithVelocityY(-joystick.GetLeftX() * MaxSpeed) 
+            return FieldCentricFacingAngle_Manualdrive.WithVelocityX(-joystick.GetLeftY() * MaxSpeed * 0.4) 
+                .WithVelocityY(-joystick.GetLeftX() * MaxSpeed * 0.4) 
                 .WithTargetDirection(drivetrain.GetState().Pose.Rotation() + 
                 mirroredOffset +
                 calcHeadingError(targetTranslation , drivetrain.GetState()) + 
-                calcShootComp(61.32_deg, 1.27935_m, targetTranslation, drivetrain.GetState(), 0.050585_m, 1, 1, 1, 1).compAngle);
+                calcShootComp(61.32_deg, 1.27935_m, targetTranslation, drivetrain.GetState(), 0.050585_m, 1, 1, 1, 1.2).compAngle);
         })
     );
 
@@ -76,7 +83,7 @@ void RobotContainer::ConfigureBindings()
 
     joystick.RightTrigger().WhileTrue(
         shooter.Shooting([this] { 
-            return calcShootComp(61.32_deg, 1.27935_m, targetTranslation, drivetrain.GetState(), 0.050585_m, 1, 6.5, 6.5, 1).tps;
+            return calcShootComp(61.32_deg, 1.27935_m, targetTranslation, drivetrain.GetState(), 0.050585_m, 4, 6.5, 6, 1).tps;
         })
     );
 

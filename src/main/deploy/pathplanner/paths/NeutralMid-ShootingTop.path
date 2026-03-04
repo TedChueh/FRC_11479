@@ -16,12 +16,12 @@
     },
     {
       "anchor": {
-        "x": 2.5146875,
-        "y": 6.812660472972973
+        "x": 2.88504222972973,
+        "y": 6.9459881756756765
       },
       "prevControl": {
-        "x": 5.566410472972973,
-        "y": 8.294079391891891
+        "x": 4.736815878377942,
+        "y": 8.368150337830775
       },
       "nextControl": null,
       "isLocked": false,
@@ -30,18 +30,22 @@
   ],
   "rotationTargets": [
     {
+      "waypointRelativePos": 0.5,
+      "rotationDegrees": 0.0
+    },
+    {
       "waypointRelativePos": 0.8907894736842095,
-      "rotationDegrees": -0.40125305043492526
+      "rotationDegrees": -0.2080194599239745
     }
   ],
   "constraintZones": [
     {
       "name": "Constraints Zone",
       "minWaypointRelativePos": 0.0,
-      "maxWaypointRelativePos": 0.6926910299003307,
+      "maxWaypointRelativePos": 0.16943521594684366,
       "constraints": {
-        "maxVelocity": 1.5,
-        "maxAcceleration": 1.5,
+        "maxVelocity": 2.0,
+        "maxAcceleration": 3.0,
         "maxAngularVelocity": 540.0,
         "maxAngularAcceleration": 720.0,
         "nominalVoltage": 12.0,
@@ -52,8 +56,14 @@
   "pointTowardsZones": [],
   "eventMarkers": [
     {
-      "name": "IntakeStop",
-      "waypointRelativePos": 0.5016611295681077,
+      "name": "Intake",
+      "waypointRelativePos": 0,
+      "endWaypointRelativePos": 0.3221476510067119,
+      "command": null
+    },
+    {
+      "name": "Shoot",
+      "waypointRelativePos": 1.0,
       "endWaypointRelativePos": null,
       "command": null
     }

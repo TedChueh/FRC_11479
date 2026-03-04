@@ -33,7 +33,7 @@ class ShooterSubsystem : public SubsystemBase {
       );
 
       CommandPtr Shooting(function<TPS()> shootTps);
-      CommandPtr Stop();
+      CommandPtr StopShooting();
 
       void ActivateShooter(TPS tps);
       void ActivateSuction(TPS tps);  

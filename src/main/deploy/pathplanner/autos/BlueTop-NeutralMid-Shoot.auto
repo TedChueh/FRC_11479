@@ -11,9 +11,9 @@
           }
         },
         {
-          "type": "named",
+          "type": "wait",
           "data": {
-            "name": "Shooting"
+            "waitTime": 1.5
           }
         },
         {
@@ -29,9 +29,27 @@
           }
         },
         {
-          "type": "named",
+          "type": "wait",
           "data": {
-            "name": "Shooting"
+            "waitTime": 1.5
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "ShootingTop-NeturalMid"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "NeutralMid-ShootingTop"
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "waitTime": 1.5
           }
         }
       ]

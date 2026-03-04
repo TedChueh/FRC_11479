@@ -38,7 +38,7 @@ CommandPtr ShooterSubsystem::Shooting(function<TPS()> shootTps) {
   );
 }
 
-CommandPtr ShooterSubsystem::Stop() {
+CommandPtr ShooterSubsystem::StopShooting() {
   return cmd::Run(
       [this]{
         systemStatus = false;
