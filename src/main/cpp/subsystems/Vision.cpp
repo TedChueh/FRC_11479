@@ -3,7 +3,7 @@
 #include <cmath>
 
 void VisionSubsystem::PeriodicUpdate(const Pose2d& robotPose, const meters_per_second_t translationSpeed, const degrees_per_second_t angularVelocity) {
-    // 提供陀螺儀資訊給 Limelight (MegaTag2 的核心要求)
+    // Provide gyroscope data to Limelight (a core requirement of MegaTag2)
     LimelightHelpers::SetRobotOrientation(
         "limelight",
         robotPose.Rotation().Degrees().value(),
@@ -11,43 +11,43 @@ void VisionSubsystem::PeriodicUpdate(const Pose2d& robotPose, const meters_per_s
         0, 0, 0, 0
     );
 
-    // 取得 MegaTag2 估計值
+    // Retrieve MegaTag2 estimate
     auto llMeasurement = LimelightHelpers::getBotPoseEstimate_wpiBlue_MegaTag2("limelight");
 
-    // 基本檢查：沒看到 Tag 就清空數據
+    // Basic check: clear data if no tag is detected
     if (!llMeasurement || llMeasurement->tagCount < 1) {
         m_measurement.reset();
         return;
     }
 
-    // 取得當前時間戳
+    // Get current timestamp
     second_t currentTimestamp = second_t(llMeasurement->timestampSeconds);
 
-    // 防止時間倒退或過久未更新
+    // Prevent time from going backward or from being outdated
     if (currentTimestamp < lastVisionUpdate || currentTimestamp - lastVisionUpdate > 1_s) {
         lastVisionUpdate = currentTimestamp;
         m_measurement.reset();
         return;
     }
 
-    // 更新頻率限制 至少50ms
+    // Update rate limit: at least 50ms between updates to prevent flooding the system with too much data
     if (currentTimestamp - lastVisionUpdate < 0.05_s) {
         m_measurement.reset();
         return;
     }
     lastVisionUpdate = currentTimestamp;
     
-    // --- 進入過濾階段 ---
+    // --- Entering filtering stage ---
     double dist = llMeasurement->avgTagDist;
     int tagCount = llMeasurement->tagCount;
 
-    // A. 距離過濾
+    // A. Distance filtering
     if (meter_t{dist} > 3.5_m) {
         m_measurement.reset();
         return;
     }
 
-    // B. 速度過濾
+    // B. Velocity filtering
     bool isAuto = DriverStation::IsAutonomous();
     meters_per_second_t maxSpeed = isAuto ? 1_mps : 2.0_mps; 
     if (translationSpeed > maxSpeed || math::abs(angularVelocity) > 360_deg_per_s) {
@@ -55,22 +55,22 @@ void VisionSubsystem::PeriodicUpdate(const Pose2d& robotPose, const meters_per_s
         return;
     }
 
-    // C. 誤差跳變與重設判定
+    // C. Error spike and reset detection
     auto poseError = llMeasurement->pose.Translation().Distance(robotPose.Translation());
     
-    //【關鍵邏輯】判斷這筆數據是否具備「強制重設 (Seed)」的資格
-    // 條件：誤差大、機器人幾乎靜止、且看到多個 Tag 以確保位置絕對正確
+    // [Key Logic] Determine if this data qualifies for a "forced reset (Seed)"
+    // Conditions: large error, robot nearly stationary, and multiple tags detected to ensure absolute position accuracy
     bool canForceSeed = (poseError > 0.5_m && translationSpeed < 0.1_mps && tagCount >= 2);
 
-    // 如果誤差大於 0.5 公尺，但又不符合「強制重設」的條件，這筆數據就有問題，丟棄它
+    // If the error is greater than 0.5 meters but doesn't meet the "forced reset" conditions, this data is invalid and should be discarded
     if (poseError > 0.5_m && !canForceSeed) {
         m_measurement.reset();
         return;
     }
 
-    // 計算動態信任權重 (Standard Deviations)
+    // Calculate dynamic trust weight (Standard Deviations)
     double xyStdDev;
-    double rotStdDev = 999999.0; // 始終不信任視覺旋轉，交給 Pigeon 2
+    double rotStdDev = 999999.0; // Never trust visual rotation; delegate to Pigeon 2
 
     if (tagCount >= 2) {
         xyStdDev = 0.12 + (dist * 0.08);
@@ -79,7 +79,7 @@ void VisionSubsystem::PeriodicUpdate(const Pose2d& robotPose, const meters_per_s
     }
     xyStdDev = clamp(xyStdDev, 0.1, 2.5);
     
-    // 打包數據
+    // Package data into VisionMeasurement struct
     VisionMeasurement vm;
     vm.pose = llMeasurement->pose;
     vm.xyStdDev = xyStdDev;
@@ -87,7 +87,7 @@ void VisionSubsystem::PeriodicUpdate(const Pose2d& robotPose, const meters_per_s
     vm.tagCount = tagCount;
     vm.timestamp = currentTimestamp;
     
-    // --- 新增：將判定結果傳給底盤 ---
+    // --- New: Send determination results to the chassis ---
     vm.isReliableForSeeding = canForceSeed; 
 
     m_measurement = vm; 
