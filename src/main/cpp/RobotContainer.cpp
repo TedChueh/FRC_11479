@@ -19,6 +19,7 @@ RobotContainer::RobotContainer()
     // NamedCommands::registerCommand("Shooting", shooter.Shooting([this] { return calcShootComp(61.32_deg, 1.27935_m, targetTranslation, drivetrain.GetState(), 0.050585_m, 4, 6.5, 6, 1).tps; }).WithTimeout(3_s));  
     EventTrigger("Intake").WhileTrue(intake.Intaking([] { return 30_tps; }));
     EventTrigger("Shoot").WhileTrue(shooter.Shooting([this] { return calcShootComp(61.32_deg, 1.27935_m, targetTranslation, drivetrain.GetState(), 0.050585_m, 4, 6.5, 6, 1).tps; }));
+    EventTrigger("Arm").WhileTrue(intake.Lowering());
     // EventTrigger("IntakeStop").WhileTrue(intake.StopIntaking());
     // EventTrigger("ShootStop").OnTrue(shooter.StopShooting());
 
@@ -89,7 +90,7 @@ void RobotContainer::ConfigureBindings()
 
    joystick.RightBumper().WhileTrue(
         shooter.Shooting([] { 
-            return 40_tps; 
+            return 60_tps; 
         })
     );
 

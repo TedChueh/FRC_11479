@@ -111,8 +111,8 @@ private:
             .PeakVoltage = 12_V,
             .PeakCurrent = 40_A,
             .RampPeriod = 0.5_s,
-            .MotionMagicCruiseVelocity = 20_tps,
-            .MotionMagicAcceleration   = 20_tr_per_s_sq
+            .MotionMagicCruiseVelocity = 50_tps,
+            .MotionMagicAcceleration   = 30_tr_per_s_sq
         }
     };
 
@@ -130,7 +130,7 @@ private:
             .kD = 0,
             .PeakVoltage = 12_V,
             .PeakCurrent = 40_A,
-            .RampPeriod = 0.5_s
+            .RampPeriod = 0.3_s
         },
         SingleMotorModule::Config{
             .motorInvert = true,
