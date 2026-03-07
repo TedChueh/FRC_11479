@@ -6,6 +6,9 @@
 
 #include <units/math.h>
 
+VisionSubsystem2::VisionSubsystem2()
+    : VisionSubsystem2(Config{}) {}
+
 VisionSubsystem2::VisionSubsystem2(Config config)
     : m_cfg(std::move(config)) {}
 
@@ -92,36 +95,6 @@ double VisionSubsystem2::ComputeXYStdDev(
     return std::clamp(xyStdDev, m_cfg.minXYStdDev, m_cfg.maxXYStdDev);
 }
 
-void VisionSubsystem2::PublishAcceptedTelemetry(const VisionUpdate& update) const {
-    frc::SmartDashboard::PutBoolean("Vision/Accepted", update.accepted);
-    frc::SmartDashboard::PutBoolean("Vision/SuggestSeed", update.suggestSeed);
-    frc::SmartDashboard::PutString("Vision/RejectReason", "Accepted");
-
-    frc::SmartDashboard::PutNumber("Vision/TagCount", static_cast<double>(update.tagCount));
-    frc::SmartDashboard::PutNumber("Vision/AvgTagDistM", update.avgTagDist.value());
-    frc::SmartDashboard::PutNumber("Vision/PoseErrorM", update.poseError.value());
-    frc::SmartDashboard::PutNumber("Vision/XYStdDev", update.xyStdDev);
-    frc::SmartDashboard::PutNumber("Vision/RotStdDev", update.rotStdDev);
-    frc::SmartDashboard::PutNumber("Vision/Timestamp", update.timestamp.value());
-
-    frc::SmartDashboard::PutNumber("Vision/PoseX", update.pose.X().value());
-    frc::SmartDashboard::PutNumber("Vision/PoseY", update.pose.Y().value());
-    frc::SmartDashboard::PutNumber("Vision/PoseDeg", update.pose.Rotation().Degrees().value());
-}
-
-void VisionSubsystem2::PublishRejectedTelemetry(
-    const char* reason,
-    int tagCount,
-    units::meter_t avgTagDist,
-    units::meter_t poseError
-) const {
-    frc::SmartDashboard::PutBoolean("Vision/Accepted", false);
-    frc::SmartDashboard::PutString("Vision/RejectReason", reason);
-    frc::SmartDashboard::PutNumber("Vision/TagCount", static_cast<double>(tagCount));
-    frc::SmartDashboard::PutNumber("Vision/AvgTagDistM", avgTagDist.value());
-    frc::SmartDashboard::PutNumber("Vision/PoseErrorM", poseError.value());
-}
-
 bool VisionSubsystem2::ComputeSeedSuggestion(
     const frc::Pose2d& visionPose,
     units::second_t timestamp,
@@ -168,6 +141,37 @@ bool VisionSubsystem2::ComputeSeedSuggestion(
     return false;
 }
 
+void VisionSubsystem2::PublishAcceptedTelemetry(const VisionUpdate& update) const {
+    frc::SmartDashboard::PutBoolean("Vision/Accepted", update.accepted);
+    frc::SmartDashboard::PutBoolean("Vision/SuggestSeed", update.suggestSeed);
+    frc::SmartDashboard::PutString("Vision/RejectReason", "Accepted");
+
+    frc::SmartDashboard::PutNumber("Vision/TagCount", static_cast<double>(update.tagCount));
+    frc::SmartDashboard::PutNumber("Vision/AvgTagDistM", update.avgTagDist.value());
+    frc::SmartDashboard::PutNumber("Vision/PoseErrorM", update.poseError.value());
+    frc::SmartDashboard::PutNumber("Vision/XYStdDev", update.xyStdDev);
+    frc::SmartDashboard::PutNumber("Vision/RotStdDev", update.rotStdDev);
+    frc::SmartDashboard::PutNumber("Vision/Timestamp", update.timestamp.value());
+
+    frc::SmartDashboard::PutNumber("Vision/PoseX", update.pose.X().value());
+    frc::SmartDashboard::PutNumber("Vision/PoseY", update.pose.Y().value());
+    frc::SmartDashboard::PutNumber("Vision/PoseDeg", update.pose.Rotation().Degrees().value());
+}
+
+void VisionSubsystem2::PublishRejectedTelemetry(
+    const char* reason,
+    int tagCount,
+    units::meter_t avgTagDist,
+    units::meter_t poseError
+) const {
+    frc::SmartDashboard::PutBoolean("Vision/Accepted", false);
+    frc::SmartDashboard::PutBoolean("Vision/SuggestSeed", false);
+    frc::SmartDashboard::PutString("Vision/RejectReason", reason);
+    frc::SmartDashboard::PutNumber("Vision/TagCount", static_cast<double>(tagCount));
+    frc::SmartDashboard::PutNumber("Vision/AvgTagDistM", avgTagDist.value());
+    frc::SmartDashboard::PutNumber("Vision/PoseErrorM", poseError.value());
+}
+
 void VisionSubsystem2::Update(
     const frc::Pose2d& robotPose,
     units::meters_per_second_t translationSpeed,
@@ -189,6 +193,7 @@ void VisionSubsystem2::Update(
     auto mt2 = LimelightHelpers::getBotPoseEstimate_wpiBlue_MegaTag2(m_cfg.limelightName);
 
     if (!mt2.has_value() || mt2->tagCount < 1) {
+        m_seedStableFrames = 0;
         PublishRejectedTelemetry("NoTags");
         return;
     }
@@ -201,11 +206,13 @@ void VisionSubsystem2::Update(
         visionPose.Translation().Distance(robotPose.Translation());
 
     if (!IsNewTimestamp(timestamp)) {
+        m_seedStableFrames = 0;
         PublishRejectedTelemetry("OldOrDuplicate", tagCount, avgTagDist, poseError);
         return;
     }
 
     if (ShouldHardReject(tagCount, avgTagDist, poseError, translationSpeed, angularVelocity)) {
+        m_seedStableFrames = 0;
         PublishRejectedTelemetry("HardReject", tagCount, avgTagDist, poseError);
         return;
     }

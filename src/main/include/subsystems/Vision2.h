@@ -35,13 +35,11 @@ public:
     struct Config {
         std::string limelightName = "limelight";
 
-        // Hard reject
         units::meter_t maxAcceptTagDistance = 5.5_m;
         units::meter_t maxHardRejectPoseError = 1.8_m;
         units::meters_per_second_t maxRejectLinearSpeed = 4.8_mps;
         units::degrees_per_second_t maxRejectAngularSpeed = 540_deg_per_s;
 
-        // Dynamic trust
         double baseXYStdDev = 0.05;
         double distanceScalar = 0.025;
         double twoTagPenalty = 0.05;
@@ -50,7 +48,7 @@ public:
         units::meter_t farSingleTagDistance = 3.5_m;
 
         double linearSpeedScalar = 0.03;
-        double angularSpeedScalar = 0.0008;  // deg/s -> stddev penalty
+        double angularSpeedScalar = 0.0008;
         double mediumErrorPenalty = 0.10;
         double largeErrorPenalty = 0.25;
 
@@ -59,9 +57,8 @@ public:
 
         double minXYStdDev = 0.04;
         double maxXYStdDev = 1.2;
-        double rotStdDev = 999999.0;    // Trust drivetrain/gyro heading, not vision yaw
+        double rotStdDev = 999999.0;
 
-        // Seed suggestion
         units::meter_t seedMinPoseError = 1.0_m;
         units::meters_per_second_t seedMaxLinearSpeed = 0.05_mps;
         units::degrees_per_second_t seedMaxAngularSpeed = 20_deg_per_s;
@@ -71,7 +68,8 @@ public:
         units::second_t seedCooldown = 1.0_s;
     };
 
-    explicit VisionSubsystem2(Config config = Config{});
+    VisionSubsystem2();
+    explicit VisionSubsystem2(Config config);
 
     void Update(
         const frc::Pose2d& robotPose,
