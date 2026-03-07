@@ -7,30 +7,6 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Left_Start"
-          }
-        },
-        {
-          "type": "wait",
-          "data": {
-            "waitTime": 1.5
-          }
-        },
-        {
-          "type": "named",
-          "data": {
-            "name": "Shoot"
-          }
-        },
-        {
-          "type": "named",
-          "data": {
-            "name": "Stop Shoot"
-          }
-        },
-        {
-          "type": "path",
-          "data": {
             "pathName": "Left_Intake"
           }
         },
@@ -43,7 +19,7 @@
         {
           "type": "wait",
           "data": {
-            "waitTime": 1.0
+            "waitTime": 0.5
           }
         },
         {

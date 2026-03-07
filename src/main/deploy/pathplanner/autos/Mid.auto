@@ -31,13 +31,13 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Left_Intake"
+            "pathName": "Mid_Intake"
           }
         },
         {
           "type": "path",
           "data": {
-            "pathName": "Left_Shoot"
+            "pathName": "Mid_Shoot"
           }
         },
         {
