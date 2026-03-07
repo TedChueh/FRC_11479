@@ -15,6 +15,7 @@
 #include "subsystems/Intake.h"
 #include "subsystems/Shooter.h"
 #include "subsystems/Vision.h"
+#include "subsystems/Vision2.h"
 #include "Telemetry.h"
 
 using namespace std;
@@ -48,6 +49,7 @@ private:
 public:
     subsystems::CommandSwerveDrivetrain drivetrain{TunerConstants::CreateDrivetrain()};
     VisionSubsystem m_vision;
+    VisionSubsystem2 m_vision2;
 
 private:
     /* Path follower */
