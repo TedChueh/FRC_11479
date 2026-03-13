@@ -16,7 +16,7 @@ using namespace pathplanner;
 
 RobotContainer::RobotContainer()
 { 
-    NamedCommands::registerCommand("Shooting", shooter.Shooting([this] { return calcShootComp(61.32_deg, 1.27935_m, targetTranslation, drivetrain.GetState(), 0.050585_m, 3, 6.2, 6.5, 1).tps; }).WithTimeout(4_s));
+    NamedCommands::registerCommand("Shooting", shooter.Shooting([this] { return calcShootComp(61.32_deg, 1.27935_m, targetTranslation, drivetrain.GetState(), 0.050585_m, 3, 6.5, 6.5, 1).tps; }).WithTimeout(4_s));
     NamedCommands::registerCommand("StopShooting", shooter.StopShooting().WithTimeout(0.1_s));
     EventTrigger("Intaking").WhileTrue(intake.Intaking([] { return 30_tps; }));
 

@@ -3,29 +3,29 @@
   "waypoints": [
     {
       "anchor": {
-        "x": 3.122706953642384,
-        "y": 5.123990066225166
+        "x": 2.3369172297297296,
+        "y": 6.21268581081081
       },
       "prevControl": null,
       "nextControl": {
-        "x": 1.5981208609271518,
-        "y": 6.641316225165562
+        "x": 2.5739442567567568,
+        "y": 7.442263513513513
       },
       "isLocked": false,
       "linkedName": "LeftShootStopPos"
     },
     {
       "anchor": {
-        "x": 6.563915562913906,
-        "y": 7.2947102649006625
+        "x": 6.603403716216217,
+        "y": 7.42004222972973
       },
       "prevControl": {
-        "x": 1.8086589403973496,
-        "y": 7.969884105960264
+        "x": 1.5319965992482558,
+        "y": 7.412046491856094
       },
       "nextControl": {
-        "x": 7.180940708635506,
-        "y": 7.207102114439428
+        "x": 7.226616563502749,
+        "y": 7.421024806448864
       },
       "isLocked": false,
       "linkedName": null
@@ -62,7 +62,7 @@
   ],
   "rotationTargets": [
     {
-      "waypointRelativePos": 0.8135593220339091,
+      "waypointRelativePos": 0.6750000000000017,
       "rotationDegrees": 180.0
     },
     {
@@ -94,7 +94,7 @@
     {
       "name": "Intaking",
       "waypointRelativePos": 1.7385159010600826,
-      "endWaypointRelativePos": 2.49328621908125,
+      "endWaypointRelativePos": 2.8903654485049812,
       "command": null
     }
   ],
@@ -114,7 +114,7 @@
   "folder": null,
   "idealStartingState": {
     "velocity": 0.0,
-    "rotation": -35.0
+    "rotation": -43.152389734005304
   },
   "useDefaultConstraints": true
 }

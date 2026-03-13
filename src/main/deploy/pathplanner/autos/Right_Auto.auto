@@ -33,6 +33,18 @@
           "data": {
             "pathName": "Right_Intake2"
           }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "Shooting"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "StopShooting"
+          }
         }
       ]
     }

@@ -9,7 +9,7 @@
       "prevControl": null,
       "nextControl": {
         "x": 6.970471854307573,
-        "y": 7.730306291389172
+        "y": 7.730306291389171
       },
       "isLocked": false,
       "linkedName": "LeftIntakeStopPos"
@@ -32,12 +32,12 @@
     },
     {
       "anchor": {
-        "x": 3.122706953642384,
-        "y": 5.123990066225166
+        "x": 2.3369172297297296,
+        "y": 6.21268581081081
       },
       "prevControl": {
-        "x": 1.0608857615894047,
-        "y": 7.193071192052981
+        "x": 2.3369172297297296,
+        "y": 7.249917111912517
       },
       "nextControl": null,
       "isLocked": false,
@@ -50,7 +50,7 @@
       "rotationDegrees": 0.0
     },
     {
-      "waypointRelativePos": 1.0847457627118602,
+      "waypointRelativePos": 1.5684210526315754,
       "rotationDegrees": 0.0
     }
   ],
@@ -74,7 +74,7 @@
   },
   "goalEndState": {
     "velocity": 0,
-    "rotation": -35.0
+    "rotation": -43.152389734005304
   },
   "reversed": false,
   "folder": null,
