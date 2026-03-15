@@ -1,97 +1,359 @@
 #include "subsystems/Vision.h"
-#include <frc/geometry/Rotation2d.h>
-#include <cmath>
 
-void VisionSubsystem::Update(const Pose2d& robotPose, const meters_per_second_t translationSpeed, const degrees_per_second_t angularVelocity) {
-    // Provide gyroscope data to Limelight (a core requirement of MegaTag2)
+#include <algorithm>
+#include <cmath>
+#include <utility>
+
+#include <units/math.h>
+
+VisionSubsystem::VisionSubsystem()
+    : VisionSubsystem(Config{}) {}
+
+VisionSubsystem::VisionSubsystem(Config config)
+    : m_cfg(std::move(config)) {}
+
+std::optional<VisionSubsystem::VisionUpdate> VisionSubsystem::GetLatestUpdate() const {
+    return m_latestUpdate;
+}
+
+bool VisionSubsystem::IsNewTimestamp(units::second_t timestamp) const {
+    return !(m_lastVisionTimestamp >= 0_s && timestamp <= m_lastVisionTimestamp);
+}
+
+VisionSubsystem::RejectReason VisionSubsystem::GetRejectReason(
+    int tagCount,
+    units::meter_t avgTagDist,
+    units::meter_t translationError,
+    units::degree_t headingError,
+    units::meters_per_second_t translationSpeed,
+    units::degrees_per_second_t angularVelocity
+) const {
+    if (tagCount < 1) {
+        return RejectReason::NoTags;
+    }
+
+    if (avgTagDist > m_cfg.maxAcceptTagDistance) {
+        return RejectReason::TagTooFar;
+    }
+
+    if (translationSpeed > m_cfg.maxRejectLinearSpeed) {
+        return RejectReason::LinearSpeedTooHigh;
+    }
+
+    if (units::math::abs(angularVelocity) > m_cfg.maxRejectAngularSpeed) {
+        return RejectReason::AngularSpeedTooHigh;
+    }
+
+    if (tagCount == 1 && headingError > m_cfg.maxHardRejectHeadingErrorSingleTag) {
+        return RejectReason::LargeHeadingErrorSingleTag;
+    }
+
+    if (translationError > m_cfg.maxHardRejectTranslationError &&
+        (translationSpeed > 0.20_mps || units::math::abs(angularVelocity) > 120_deg_per_s)) {
+        return RejectReason::LargeDisagreementWhileMoving;
+    }
+
+    return RejectReason::None;
+}
+
+double VisionSubsystem::ComputeXYStdDev(
+    int tagCount,
+    units::meter_t avgTagDist,
+    units::meter_t translationError,
+    units::degree_t headingError,
+    units::meters_per_second_t translationSpeed,
+    units::degrees_per_second_t angularVelocity
+) const {
+    double xyStdDev = m_cfg.baseXYStdDev;
+
+    // Farther tags -> less trust
+    xyStdDev += avgTagDist.value() * m_cfg.distanceScalar;
+
+    // Fewer tags -> slightly less trust, but not overly harsh for MegaTag2
+    if (tagCount == 1) {
+        xyStdDev += m_cfg.oneTagPenalty;
+
+        if (avgTagDist > m_cfg.farSingleTagDistance) {
+            xyStdDev += m_cfg.farSingleTagPenalty;
+        }
+    } else if (tagCount == 2) {
+        xyStdDev += m_cfg.twoTagPenalty;
+    }
+
+    // More motion -> less trust
+    xyStdDev += translationSpeed.value() * m_cfg.linearSpeedScalar;
+    xyStdDev += units::math::abs(angularVelocity).value() * m_cfg.angularSpeedScalar;
+
+    // Translation disagreement with drivetrain pose
+    if (translationError > m_cfg.mediumTranslationError) {
+        xyStdDev += m_cfg.mediumTranslationPenalty;
+    }
+    if (translationError > m_cfg.largeTranslationError) {
+        xyStdDev += m_cfg.largeTranslationPenalty;
+    }
+
+    // Heading disagreement with drivetrain pose
+    xyStdDev += headingError.value() * m_cfg.headingErrorScalar;
+
+    if (headingError > m_cfg.mediumHeadingError) {
+        xyStdDev += m_cfg.mediumHeadingPenalty;
+    }
+    if (headingError > m_cfg.largeHeadingError) {
+        xyStdDev += m_cfg.largeHeadingPenalty;
+    }
+
+    return std::clamp(xyStdDev, m_cfg.minXYStdDev, m_cfg.maxXYStdDev);
+}
+
+double VisionSubsystem::ComputeRotStdDev(
+    int tagCount,
+    units::meter_t avgTagDist,
+    units::degree_t headingError,
+    units::degrees_per_second_t angularVelocity
+) const {
+    if (tagCount >= 2 &&
+        avgTagDist <= m_cfg.rotTrustMaxTagDistance &&
+        units::math::abs(angularVelocity) <= m_cfg.rotTrustMaxAngularSpeed &&
+        headingError <= m_cfg.rotTrustMaxHeadingError) {
+        return m_cfg.closeMultiTagRotStdDev;
+    }
+
+    return m_cfg.defaultRotStdDev;
+}
+
+bool VisionSubsystem::ComputeSeedSuggestion(
+    const frc::Pose2d& visionPose,
+    units::second_t timestamp,
+    units::meter_t translationError,
+    units::degree_t headingError,
+    int tagCount,
+    units::meters_per_second_t translationSpeed,
+    units::degrees_per_second_t angularVelocity
+) {
+    const bool seedCandidate =
+        (translationError > m_cfg.seedMinTranslationError) &&
+        (headingError <= m_cfg.seedMaxHeadingError) &&
+        (translationSpeed < m_cfg.seedMaxLinearSpeed) &&
+        (units::math::abs(angularVelocity) < m_cfg.seedMaxAngularSpeed) &&
+        (tagCount >= m_cfg.seedMinTagCount);
+
+    if (!seedCandidate) {
+        m_seedStableFrames = 0;
+        return false;
+    }
+
+    if (m_seedStableFrames == 0) {
+        m_seedStableFrames = 1;
+        m_lastSeedCandidatePose = visionPose;
+        return false;
+    }
+
+    const units::meter_t translationDelta =
+        visionPose.Translation().Distance(m_lastSeedCandidatePose.Translation());
+
+    const units::degree_t headingDelta = units::degree_t{
+        std::abs((visionPose.Rotation().Degrees() - m_lastSeedCandidatePose.Rotation().Degrees()).value())
+    };
+
+    if (translationDelta < m_cfg.seedConsistencyTolerance &&
+        headingDelta < m_cfg.seedHeadingTolerance) {
+        ++m_seedStableFrames;
+    } else {
+        m_seedStableFrames = 1;
+    }
+
+    m_lastSeedCandidatePose = visionPose;
+
+    const bool cooldownOk = (timestamp - m_lastSeedTime) > m_cfg.seedCooldown;
+    if (m_seedStableFrames >= m_cfg.seedStableFramesRequired && cooldownOk) {
+        m_lastSeedTime = timestamp;
+        m_seedStableFrames = 0;
+        return true;
+    }
+
+    return false;
+}
+
+const char* VisionSubsystem::RejectReasonToString(RejectReason reason) {
+    switch (reason) {
+        case RejectReason::None:
+            return "None";
+        case RejectReason::NoMeasurement:
+            return "NoMeasurement";
+        case RejectReason::NoTags:
+            return "NoTags";
+        case RejectReason::DuplicateTimestamp:
+            return "DuplicateTimestamp";
+        case RejectReason::TagTooFar:
+            return "TagTooFar";
+        case RejectReason::LinearSpeedTooHigh:
+            return "LinearSpeedTooHigh";
+        case RejectReason::AngularSpeedTooHigh:
+            return "AngularSpeedTooHigh";
+        case RejectReason::LargeHeadingErrorSingleTag:
+            return "LargeHeadingErrorSingleTag";
+        case RejectReason::LargeDisagreementWhileMoving:
+            return "LargeDisagreementWhileMoving";
+        default:
+            return "Unknown";
+    }
+}
+
+void VisionSubsystem::PublishAcceptedTelemetry(const VisionUpdate& update) const {
+    frc::SmartDashboard::PutBoolean("Vision/Accepted", update.accepted);
+    frc::SmartDashboard::PutBoolean("Vision/SuggestSeed", update.suggestSeed);
+    frc::SmartDashboard::PutString("Vision/RejectReason", "Accepted");
+
+    frc::SmartDashboard::PutNumber("Vision/TagCount", static_cast<double>(update.tagCount));
+    frc::SmartDashboard::PutNumber("Vision/AvgTagDistM", update.avgTagDist.value());
+    frc::SmartDashboard::PutNumber("Vision/TranslationErrorM", update.translationError.value());
+    frc::SmartDashboard::PutNumber("Vision/HeadingErrorDeg", update.headingError.value());
+    frc::SmartDashboard::PutNumber("Vision/XYStdDev", update.xyStdDev);
+    frc::SmartDashboard::PutNumber("Vision/RotStdDev", update.rotStdDev);
+    frc::SmartDashboard::PutNumber("Vision/Timestamp", update.timestamp.value());
+
+    frc::SmartDashboard::PutNumber("Vision/PoseX", update.pose.X().value());
+    frc::SmartDashboard::PutNumber("Vision/PoseY", update.pose.Y().value());
+    frc::SmartDashboard::PutNumber("Vision/PoseDeg", update.pose.Rotation().Degrees().value());
+}
+
+void VisionSubsystem::PublishRejectedTelemetry(
+    RejectReason reason,
+    units::second_t timestamp,
+    int tagCount,
+    units::meter_t avgTagDist,
+    units::meter_t translationError,
+    units::degree_t headingError
+) const {
+    frc::SmartDashboard::PutBoolean("Vision/Accepted", false);
+    frc::SmartDashboard::PutBoolean("Vision/SuggestSeed", false);
+    frc::SmartDashboard::PutString("Vision/RejectReason", RejectReasonToString(reason));
+
+    frc::SmartDashboard::PutNumber("Vision/Timestamp", timestamp.value());
+    frc::SmartDashboard::PutNumber("Vision/TagCount", static_cast<double>(tagCount));
+    frc::SmartDashboard::PutNumber("Vision/AvgTagDistM", avgTagDist.value());
+    frc::SmartDashboard::PutNumber("Vision/TranslationErrorM", translationError.value());
+    frc::SmartDashboard::PutNumber("Vision/HeadingErrorDeg", headingError.value());
+}
+
+void VisionSubsystem::Update(
+    const frc::Pose2d& robotPose,
+    units::meters_per_second_t translationSpeed,
+    units::degrees_per_second_t angularVelocity,
+    bool isAuto
+) {
+    m_latestUpdate.reset();
+
+    // MegaTag2 requires the robot heading each cycle
     LimelightHelpers::SetRobotOrientation(
-        "limelight",
+        m_cfg.limelightName,
         robotPose.Rotation().Degrees().value(),
         angularVelocity.value(),
-        0, 0, 0, 0
+        0.0,
+        0.0,
+        0.0,
+        0.0
     );
 
-    // Retrieve MegaTag2 estimate
-    auto llMeasurement = LimelightHelpers::getBotPoseEstimate_wpiBlue_MegaTag2("limelight");
+    auto mt2 = LimelightHelpers::getBotPoseEstimate_wpiBlue_MegaTag2(m_cfg.limelightName);
 
-    // Basic check: clear data if no tag is detected
-    if (!llMeasurement || llMeasurement->tagCount < 1) {
-        m_measurement.reset();
+    if (!mt2.has_value()) {
+        m_seedStableFrames = 0;
+        PublishRejectedTelemetry(RejectReason::NoMeasurement);
         return;
     }
 
-    // Get current timestamp
-    second_t currentTimestamp = second_t(llMeasurement->timestampSeconds);
+    const units::second_t timestamp{mt2->timestampSeconds};
+    const frc::Pose2d visionPose = mt2->pose;
+    const int tagCount = mt2->tagCount;
+    const units::meter_t avgTagDist{mt2->avgTagDist};
 
-    // Prevent time from going backward or from being outdated
-    if (currentTimestamp <= lastVisionUpdate || currentTimestamp - lastVisionUpdate > 0.1_s) {
-        lastVisionUpdate = currentTimestamp;
-        m_measurement.reset();
-        return;
-    }
-    lastVisionUpdate = currentTimestamp;
-    
-    // --- Entering filtering stage ---
-    double dist = llMeasurement->avgTagDist;
-    int tagCount = llMeasurement->tagCount;
-
-    // A. Distance filtering
-    if (meter_t{dist} > 4.5_m) {
-        m_measurement.reset();
+    if (tagCount < 1) {
+        m_seedStableFrames = 0;
+        PublishRejectedTelemetry(RejectReason::NoTags, timestamp, tagCount, avgTagDist);
         return;
     }
 
-    // B. Velocity filtering
-    bool isAuto = DriverStation::IsAutonomous();
-    meters_per_second_t maxSpeed = isAuto ? 3.0_mps : 4.0_mps; 
-    if (translationSpeed > maxSpeed || math::abs(angularVelocity) > 360_deg_per_s) {
-        m_measurement.reset();
+    if (!IsNewTimestamp(timestamp)) {
+        m_seedStableFrames = 0;
+        PublishRejectedTelemetry(RejectReason::DuplicateTimestamp, timestamp, tagCount, avgTagDist);
         return;
     }
 
-    // C. Error spike and reset detection
-    auto poseError = llMeasurement->pose.Translation().Distance(robotPose.Translation());
-    
-    // [Key Logic] Determine if this data qualifies for a "forced reset (Seed)"
-    // Conditions: large error, robot nearly stationary, and multiple tags detected to ensure absolute position accuracy
-    bool canForceSeed = (poseError > 0.5_m && translationSpeed < 0.1_mps && tagCount >= 2);
+    const units::meter_t translationError =
+        visionPose.Translation().Distance(robotPose.Translation());
 
-    // If the error is greater than 0.5 meters but doesn't meet the "forced reset" conditions, this data is invalid and should be discarded
-    if (poseError > 0.5_m && !canForceSeed) {
-        m_measurement.reset();
+    const units::degree_t headingError = units::degree_t{
+        std::abs((visionPose.Rotation().Degrees() - robotPose.Rotation().Degrees()).value())
+    };
+
+    const RejectReason rejectReason = GetRejectReason(
+        tagCount,
+        avgTagDist,
+        translationError,
+        headingError,
+        translationSpeed,
+        angularVelocity
+    );
+
+    if (rejectReason != RejectReason::None) {
+        m_seedStableFrames = 0;
+        PublishRejectedTelemetry(
+            rejectReason,
+            timestamp,
+            tagCount,
+            avgTagDist,
+            translationError,
+            headingError
+        );
         return;
     }
 
-    // Calculate dynamic trust weight (Standard Deviations)
-    double xyStdDev;
-    double rotStdDev = 999999.0; // Never trust visual rotation; delegate to Pigeon 2
+    // Consume timestamp only after validation passes
+    m_lastVisionTimestamp = timestamp;
 
-    if (tagCount >= 3) {
-        xyStdDev = 0.04 + (dist * 0.03);
-    } 
-    else if (tagCount == 2) {
-        xyStdDev = 0.06 + (dist * 0.04);
+    double xyStdDev = ComputeXYStdDev(
+        tagCount,
+        avgTagDist,
+        translationError,
+        headingError,
+        translationSpeed,
+        angularVelocity
+    );
+
+    if(isAuto){
+        xyStdDev *= 1.3;
     }
-    else {
-        xyStdDev = 0.30 + (dist * 0.20);
-    }
-    xyStdDev = clamp(xyStdDev, 0.03, 0.9);
-    
-    // Package data into VisionMeasurement struct
-    VisionMeasurement vm;
-    vm.pose = llMeasurement->pose;
-    vm.xyStdDev = xyStdDev;
-    vm.rotStdDev = rotStdDev;
-    vm.tagCount = tagCount;
-    vm.timestamp = currentTimestamp;
-    
-    // --- New: Send determination results to the chassis ---
-    vm.isReliableForSeeding = canForceSeed; 
 
-    m_measurement = vm; 
+    const double rotStdDev = ComputeRotStdDev(
+        tagCount,
+        avgTagDist,
+        headingError,
+        angularVelocity
+    );
 
-    // Telemetry
-    SmartDashboard::PutNumber("Vision/PoseError_m", poseError.value());
-    SmartDashboard::PutNumber("Vision/XY_StdDev", xyStdDev);
-    SmartDashboard::PutNumber("Vision/TagsSeen", (double)tagCount);
+    const bool suggestSeed = ComputeSeedSuggestion(
+        visionPose,
+        timestamp,
+        translationError,
+        headingError,
+        tagCount,
+        translationSpeed,
+        angularVelocity
+    );
+
+    VisionUpdate update;
+    update.pose = visionPose;
+    update.timestamp = timestamp;
+    update.xyStdDev = xyStdDev;
+    update.rotStdDev = rotStdDev;
+    update.tagCount = tagCount;
+    update.avgTagDist = avgTagDist;
+    update.translationError = translationError;
+    update.headingError = headingError;
+    update.accepted = true;
+    update.suggestSeed = suggestSeed;
+
+    m_latestUpdate = update;
+    PublishAcceptedTelemetry(update);
 }
